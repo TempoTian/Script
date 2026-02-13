@@ -2,6 +2,8 @@ const SIZE = 4;
 const EMPTY = 0;
 const HUMAN = 1;
 const AI = 2;
+const AI_TURN_DELAY = 900;
+const AI_STEP_DELAY = 850;
 
 const state = {
   board: Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY)),
@@ -159,8 +161,11 @@ function movablePieces(player, board = state.board) {
 }
 
 function evaluateWin() {
-  if (state.hadPiece[HUMAN] && countPieces(HUMAN) === 0) state.winner = AI;
-  if (state.hadPiece[AI] && countPieces(AI) === 0) state.winner = HUMAN;
+  const humanCount = countPieces(HUMAN);
+  const aiCount = countPieces(AI);
+
+  if (state.hadPiece[HUMAN] && (humanCount === 0 || (state.phase === "movement" && humanCount === 1))) state.winner = AI;
+  if (state.hadPiece[AI] && (aiCount === 0 || (state.phase === "movement" && aiCount === 1))) state.winner = HUMAN;
 }
 
 function getLine(pos, horizontal) {
@@ -457,12 +462,12 @@ function handlePlacement(r, c, player) {
       state.current = player;
       log("棋盘下满，进入拔子阶段。最后落子方先拔。");
       render();
-      if (state.current === AI) setTimeout(aiTurn, 350);
+      if (state.current === AI) setTimeout(aiTurn, AI_TURN_DELAY);
       return;
     }
     state.current = other(player);
     render();
-    if (state.current === AI) setTimeout(aiTurn, 350);
+    if (state.current === AI) setTimeout(aiTurn, AI_TURN_DELAY);
   });
 }
 
@@ -554,7 +559,7 @@ function handlePreMoveRemoval(r, c, player) {
     log("进入移动阶段。可上下左右一步移动到空位。");
   }
   render();
-  if (state.current === AI && !state.winner) setTimeout(aiTurn, 320);
+  if (state.current === AI && !state.winner) setTimeout(aiTurn, AI_TURN_DELAY);
 }
 
 function handleMovementClick(r, c, player) {
@@ -589,7 +594,7 @@ function doMove(player, from, to) {
     if (state.winner) return endTurn();
     state.current = other(player);
     render();
-    if (state.current === AI) setTimeout(aiTurn, 350);
+    if (state.current === AI) setTimeout(aiTurn, AI_TURN_DELAY);
   });
 }
 
@@ -623,7 +628,7 @@ function aiRemove() {
 function aiMovement() {
   const mineMovable = movablePieces(AI);
   if (!mineMovable.length) {
-    // 堵住时：先移除任意敌子，再移动一子
+    // 堵住时：先移除任意敌子，再延迟移动一子，方便观察步骤
     const enemyPos = [];
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (state.board[r][c] === HUMAN) enemyPos.push([r, c]);
     if (!enemyPos.length) return;
@@ -631,6 +636,22 @@ function aiMovement() {
     saveHistory();
     state.board[victim[0]][victim[1]] = EMPTY;
     log(`电脑被堵住，移除敌子 ${fmt(victim)} 后继续走。`);
+    evaluateWin();
+    render();
+    if (state.winner) return;
+
+    setTimeout(() => {
+      if (state.winner || state.current !== AI || state.phase !== "movement") return;
+      const delayedActions = generateMoveActions(state.board, AI);
+      if (!delayedActions.length) {
+        state.current = HUMAN;
+        render();
+        return;
+      }
+      const delayedBest = searchBestAction(state, 2, delayedActions);
+      doMove(AI, delayedBest.from, delayedBest.to);
+    }, AI_STEP_DELAY);
+    return;
   }
 
   const actions = generateMoveActions(state.board, AI);
@@ -640,7 +661,10 @@ function aiMovement() {
     return;
   }
   const best = searchBestAction(state, 2, actions);
-  doMove(AI, best.from, best.to);
+  setTimeout(() => {
+    if (state.winner || state.current !== AI || state.phase !== "movement") return;
+    doMove(AI, best.from, best.to);
+  }, AI_STEP_DELAY);
 }
 
 function generateMoveActions(board, player) {
@@ -734,7 +758,8 @@ function simulateAction(src, player, action) {
     if (best.type === "array") sim.usedArrays[player].add(lineKey(best.horizontal, best.idx));
     removePieces(sim.board, best.selectedTargets || best.targets);
   }
-  if (countPieces(other(player), sim.board) === 0) sim.winner = player;
+  const enemyCount = countPieces(other(player), sim.board);
+  if (enemyCount === 0 || (sim.phase === "movement" && enemyCount === 1)) sim.winner = player;
   return sim;
 }
 
