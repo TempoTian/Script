@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>推子棋（人机）</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="layout">
+    <section class="board-wrap">
+      <h1>推子棋（3x3 方格 / 16 交叉点）</h1>
+      <div id="status" class="status"></div>
+      <div id="board" class="board" aria-label="board"></div>
+      <div class="controls">
+        <button id="restartBtn">重开</button>
+        <button id="undoBtn">悔棋</button>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h2>规则提示</h2>
+      <ul>
+        <li>黑子：玩家先手；白子：电脑后手。</li>
+        <li>落子/移动后，若同时触发多条规则，玩家可点击下方闪烁选项选择一种。</li>
+        <li>阵列（满行/满列）每条线每方仅能触发一次。</li>
+        <li>下满后：最后落子方先拔子，再对手拔子，然后进入移动阶段。</li>
+      </ul>
+      <div id="choiceBox" class="choice-box hidden">
+        <h3>请选择规则执行</h3>
+        <div id="choices"></div>
+      </div>
+      <div id="log" class="log" aria-live="polite"></div>
+    </aside>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
